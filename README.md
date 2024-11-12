@@ -26,7 +26,7 @@ A C# console application to monitor a specified folder for `.patch` files and sa
 
 2. **Navigate to the Project Directory**:
    ```bash
-   cd yourrepository
+   cd Gitlab-Patch-File-Sanitizer
    ```
 
 3. **Build the Program**:
