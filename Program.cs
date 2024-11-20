@@ -60,9 +60,31 @@ class Program
         // Update the last processed time for the file
         processedFiles[e.FullPath] = DateTime.Now;
 
+        Task.Delay(500).ConfigureAwait(false).GetAwaiter().GetResult();
         // Run cleaning asynchronously to avoid blocking
-        Task.Run(() => CleanPatchFile(e.FullPath));
+        Task.Run(() => RetryProcessFile(e.FullPath, 5, TimeSpan.FromMilliseconds(500)));
     }
+
+    private static void RetryProcessFile(string filePath, int maxRetries, TimeSpan delay)
+    {
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                // Try processing the file
+                CleanPatchFile(filePath);
+                return; // If successful, exit the loop
+            }
+            catch (IOException)
+            {
+                // Wait before retrying
+                Task.Delay(delay).ConfigureAwait(false).GetAwaiter().GetResult();
+            }
+        }
+
+        Console.WriteLine($"Failed to process file after {maxRetries} attempts: {filePath}");
+    }
+
 
     private static void CleanPatchFile(string filePath)
     {
@@ -72,6 +94,7 @@ class Program
             string[] lines = File.ReadAllLines(filePath);
             for (int i = 0; i < lines.Length; i++)
             {
+
                 // Remove Git paths or namespaces (e.g., format: namespace/sub-namespace/...)
                 lines[i] = Regex.Replace(lines[i], @"\b[\w-]+(?:\/[\w-]+)+\b", string.Empty);
 
@@ -85,6 +108,7 @@ class Program
                 lines[i] = Regex.Replace(lines[i], @"([a-zA-Z]:\\|\/)[^\s]*", "REMOVED_PATH");
 
                 // Remove committer name (e.g., "From: Name <email>")
+                lines[i] = Regex.Replace(lines[i], @"^From:\s+.+", "From: REMOVED_COMMITTER");
                 lines[i] = Regex.Replace(lines[i], @"^From:\s+.+", "From: REMOVED_COMMITTER");
 
                 // Remove commit message starting after "Date:" line
