@@ -95,6 +95,7 @@ class Program
             for (int i = 0; i < lines.Length; i++)
             {
 
+
                 // Remove Git paths or namespaces (e.g., format: namespace/sub-namespace/...)
                 lines[i] = Regex.Replace(lines[i], @"\b[\w-]+(?:\/[\w-]+)+\b", string.Empty);
 
@@ -123,6 +124,26 @@ class Program
                     }
                     i--; // Adjust index back for loop continuation
                 }
+
+                // GORM-specific: Sanitize sensitive SQL statements (e.g., CREATE, DROP, INSERT)
+                lines[i] = Regex.Replace(lines[i], @"\b(CREATE|DROP|INSERT|DELETE|ALTER)\s+TABLE\b", "REMOVED_SQL_OPERATION", RegexOptions.IgnoreCase);
+
+                // GORM-specific: Remove database column definitions
+                lines[i] = Regex.Replace(lines[i], @"`\w+`\s+(VARCHAR|TEXT|INT|BIGINT|BOOLEAN|TIMESTAMP)", "REMOVED_COLUMN_DEFINITION", RegexOptions.IgnoreCase);
+
+                // Golang Imports: Remove sensitive imports (e.g., private repos or paths)
+                lines[i] = Regex.Replace(lines[i], @"import\s+\(.*\)", "REMOVED_IMPORT", RegexOptions.IgnoreCase);
+                lines[i] = Regex.Replace(lines[i], @"import\s+\"".*\""", "REMOVED_IMPORT", RegexOptions.IgnoreCase);
+
+                // Golang-specific: Redact configuration paths or environment variables
+                lines[i] = Regex.Replace(lines[i], @"os.Getenv\(\"".*\""\)", "REMOVED_ENV", RegexOptions.IgnoreCase);
+
+                // Golang-specific: Redact hardcoded secrets (e.g., anything resembling a token or key)
+                lines[i] = Regex.Replace(lines[i], @"(\""[A-Za-z0-9_-]{20,}\"")", "REMOVED_SECRET", RegexOptions.IgnoreCase);
+
+                // GORM-specific: Redact migration creator name (e.g., "// Created by Name" or annotations)
+                lines[i] = Regex.Replace(lines[i], @"\/\/\s*Created by\s+.+", "// REMOVED_CREATOR", RegexOptions.IgnoreCase);
+                lines[i] = Regex.Replace(lines[i], @"@Author\(.*\)", "@REMOVED_CREATOR", RegexOptions.IgnoreCase);
             }
 
             // Overwrite the file with sanitized content
